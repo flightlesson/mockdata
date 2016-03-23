@@ -9,7 +9,8 @@ The motivation was a 1-billion row table in a PostgreSQL database. The table was
             ,stuff TEXT
         );
 
-and had ~10^5 different handle values each with ~10^4 [lowest,highest] ranges. The ranges tended to be fairly narrow and, for each handle, rarely overlapped.
+and had ~10^5 different handle values each with ~10^4 [lowest,highest] ranges. The ranges tended to be fairly narrow and,
+for each handle, rarely overlapped.
 
 The queries were similar to
 
