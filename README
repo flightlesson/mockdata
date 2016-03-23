@@ -1,23 +1,24 @@
-This is a template for starting a new Java application.
+Intended to be used to create test data for performance tests of an SQL database.
 
-Customization starts by:
+The motivation was a 1-billion row table in a PostgreSQL database. The table was similar to 
 
-- Under src/main, rename "com/demo/myapp" to your package and MyApp.java to your main class.
-- Edit and rename the "myapp" application wrapper script. Change TRUNK, jarfilebasename, and mainclass.
-- Edit "pom.xml"; change <project><groupId>, <project><artifactId>, <properties><trunk> and ..<manifest><mainClass>.
-- Edit "Makefile"; change default values for MYAPP and JARFILE.nnn
-- Edit the renamed "MyApp.java" and add your application code.
+        CREATE TABLE mock (
+            handle INT NOT NULL
+            ,lowest INT NOT NULL
+            ,highest INT NOT NULL
+            ,stuff TEXT
+        );
 
-To build the application using maven run "mvn package". 
-Note that build artifacts get placed in "../maven-build-artifacts/myapp"
-instead of "target", which is maven's default: this is to avoid polluting 
-the project directory with build artifacts. See pom.xml to change this behavior.
+and had ~10^5 different handle values each with ~10^4 [lowest,highest] ranges. The ranges tended to be fairly narrow and, for each handle, rarely overlapped.
 
-To build the application using make, run "make all" or "make install". "make all"
-simply runs 'mvn package'; "make install" creates the ../sandbox directory and
-installs there. The sandbox can be useful in distributing your application.
+The queries were similar to
 
-Use the renamed "myapp" script to start the application. 
-Try running with the "+h" command line arg, then with the "-h" command line arg.
+        SELECT * FROM mock WHERE handle=11242 AND highest >= 800420 AND lowest <= 829006;
 
-Enjoy!
+In other words, each SELECT looked for all rows with a specific handle that overlapped a target [highest,lowest] range.
+
+My initial PostgreS!L tests started with
+
+      createdb mockdb
+      mockdatagenerator --sql --nrows 100000000 | psql mockdb
+
