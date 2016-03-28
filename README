@@ -1,6 +1,23 @@
-Intended to be used to create test data for performance tests of an SQL database.
+Intended to be used to create test data for performance tests of an
+SQL database.
 
-The motivation was a 1-billion row table in a PostgreSQL database. The table was similar to 
+The motivation was a 1-billion row table in a PostgreSQL database. The
+table was similar to
+
+        CREATE TABLE motivator (
+             handle INT NOT NULL
+             ,lowest TIMESTAMP WITH TIME ZONE NOT NULL
+             ,highest TIMESTAMP WITH TIME ZONE NOT NULL
+             ,stuff TEXT
+        );
+
+and had ~10^5 different handle values each with about ~10^4
+[lowest,highest] ranges. The ranges were instantaneous up to a few
+hours wide in the past couple of years; less than 10% of a handle's
+ranges overlapped. Queries were for a specific handle with ranges from
+a few minutes to a day or so.
+
+The simplifies to
 
         CREATE TABLE mock (
             handle INT NOT NULL
@@ -9,17 +26,28 @@ The motivation was a 1-billion row table in a PostgreSQL database. The table was
             ,stuff TEXT
         );
 
-and had ~10^5 different handle values each with ~10^4 [lowest,highest] ranges. The ranges tended to be fairly narrow and,
-for each handle, rarely overlapped.
-
-The queries were similar to
+with queries similar to
 
         SELECT * FROM mock WHERE handle=11242 AND highest >= 800420 AND lowest <= 829006;
 
-In other words, each SELECT looked for all rows with a specific handle that overlapped a target [highest,lowest] range.
-
-My initial PostgreS!L tests started with
+My initial PostgreSQL tests started with
 
       createdb mockdb
-      mockdatagenerator --sql --nrows 100000000 | psql mockdb
+      mockdatagenerator --create-table --nrows 100000000 | psql mockdb
+
+My first tests compared index schemes and started like
+
+      alter table mock rename to mock1;
+      create table mock2 as select * from table1;
+      create index testindex1 on mock1(handle,lowest);
+      create index testindex2 on mock2 using gist (handle,(int4range(lowest,highest,'[]')));
+
+It then had many queries/inserts/deletes on both tables to try to
+determine which which table -- i.e. index scheme -- was faster. 
+
+Note that in the above test, mock2's index required queries to change:
+
+        SELECT * FROM mock1 WHERE handle=11242 AND highest >= 800420 AND lowest <= 829006;
+        SELECT * FROM mock2 WHERE handle=11242 AND int4range(lowest,highest,'[]') && int4range(800420,829006,'[]');
+
 
