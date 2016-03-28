@@ -1,17 +1,11 @@
 package mockdata;
 
-import java.io.File;
 import java.util.Random;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.log4j.BasicConfigurator;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PropertyConfigurator;
-import org.apache.log4j.xml.DOMConfigurator;
 
 /**
  * For performance-testing an SQL database.
@@ -77,8 +71,8 @@ public class MockDataGenerator implements Runnable {
                 +" When -create-table is specified the generated SQL will be a \"COPY ... FROM stdin\" statement.");
         OPTIONS.addOption(null,"create-table", false, 
                 "Implies SQL. See discussion with the -sql option.");
-        //OPTIONS.addOption(null,"type", true, 
-        //        "Data type for the range endpoint. [INT]");
+        OPTIONS.addOption(null,"type", true, 
+                "Data type for the range endpoint. [INT]");
         OPTIONS.addOption(null,"seed", true,
                 "Seed value for the random number generator.");
     }
@@ -108,7 +102,6 @@ public class MockDataGenerator implements Runnable {
                     );
             application.run();
         } catch (ParseException ex) {
-            // can't use logger; it's not configured
             System.err.println(ex.getMessage());
             (new HelpFormatter()).printHelp(USAGE,HEADER,OPTIONS,FOOTER,false);
         }
@@ -146,15 +139,15 @@ public class MockDataGenerator implements Runnable {
         }
         
         if (createTable) {
-            System.out.println(CREATE_TABLE_SQL);
+            System.out.println(CREATE_TABLE_SQL.replaceAll("<type>", range_type));
         }
         
         String comma = "";
         
         if (createTable) {
-            System.out.println("COPY mock (handle, lowest, highest, stuff) FROM stdin;");
+            System.out.println("COPY mock (handle, range_low, range_high, stuff) FROM stdin;");
         } else if (sql) {
-            System.out.println("INSERT INTO mock (handle, lowest, highest, stuff) VALUES ");
+            System.out.println("INSERT INTO mock (handle, range_low, range_high, stuff) VALUES ");
         }
         
         Random rand = new Random();
