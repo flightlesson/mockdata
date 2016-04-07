@@ -1,5 +1,5 @@
-Intended to be used to create test data for performance tests of an
-SQL database.
+Intended to be used to create test data for performance testing an SQL
+database.
 
 The motivation was a 1-billion row table in a PostgreSQL database. The
 table was similar to
@@ -11,11 +11,11 @@ table was similar to
              ,stuff TEXT
         );
 
-and had ~10^5 different handle values each with about ~10^4
-[range_low,range_high] ranges. The ranges were instantaneous up to a few
-hours wide in the past couple of years; less than 10% of a handle's
-ranges overlapped. Queries were for a specific handle with ranges from
-a few minutes to a day or so.
+and had ~10^5 different handle values each with
+~10^4[range_low,range_high] ranges. The ranges were from instantaneous
+up to a few hours wide in the past couple of years; less than 10% of a
+handle's ranges overlapped. Queries were for a specific handle with
+ranges from a few minutes to a day or so.
 
 The simplifies to
 
@@ -33,12 +33,12 @@ with queries similar to
 My initial PostgreSQL tests started with
 
       createdb mockdb
-      mockdatagenerator --create-table --nrows 100000000 | psql mockdb
+      ( echo '\timing'; mockdatagenerator --create-table --nrows 100000000 ) | psql mockdb
 
 My first tests compared index schemes and started like
 
       alter table mock rename to mock1;
-      create table mock2 as select * from table1;
+      create table mock2 as select * from mock1;
       create index testindex1 on mock1(handle,range_low);
       create index testindex2 on mock2 using gist (handle,(int4range(range_low,range_high,'[]')));
 
@@ -49,5 +49,3 @@ Note that in the above test, mock2's index required queries to change:
 
         SELECT * FROM mock1 WHERE handle=11242 AND range_high >= 800420 AND range_low <= 829006;
         SELECT * FROM mock2 WHERE handle=11242 AND int4range(range_low,range_high,'[]') && int4range(800420,829006,'[]');
-
-
