@@ -6,13 +6,13 @@ table was similar to
 
         CREATE TABLE motivator (
              handle INT NOT NULL
-             ,lowest TIMESTAMP WITH TIME ZONE NOT NULL
-             ,highest TIMESTAMP WITH TIME ZONE NOT NULL
+             ,range_low TIMESTAMP WITH TIME ZONE NOT NULL
+             ,range_high TIMESTAMP WITH TIME ZONE NOT NULL
              ,stuff TEXT
         );
 
 and had ~10^5 different handle values each with about ~10^4
-[lowest,highest] ranges. The ranges were instantaneous up to a few
+[range_low,range_high] ranges. The ranges were instantaneous up to a few
 hours wide in the past couple of years; less than 10% of a handle's
 ranges overlapped. Queries were for a specific handle with ranges from
 a few minutes to a day or so.
@@ -21,14 +21,14 @@ The simplifies to
 
         CREATE TABLE mock (
             handle INT NOT NULL
-            ,lowest INT NOT NULL
-            ,highest INT NOT NULL
+            ,range_low INT NOT NULL
+            ,range_high INT NOT NULL
             ,stuff TEXT
         );
 
 with queries similar to
 
-        SELECT * FROM mock WHERE handle=11242 AND highest >= 800420 AND lowest <= 829006;
+        SELECT * FROM mock WHERE handle=11242 AND range_high >= 800420 AND range_low <= 829006;
 
 My initial PostgreSQL tests started with
 
@@ -39,15 +39,15 @@ My first tests compared index schemes and started like
 
       alter table mock rename to mock1;
       create table mock2 as select * from table1;
-      create index testindex1 on mock1(handle,lowest);
-      create index testindex2 on mock2 using gist (handle,(int4range(lowest,highest,'[]')));
+      create index testindex1 on mock1(handle,range_low);
+      create index testindex2 on mock2 using gist (handle,(int4range(range_low,range_high,'[]')));
 
 It then had many queries/inserts/deletes on both tables to try to
 determine which which table -- i.e. index scheme -- was faster. 
 
 Note that in the above test, mock2's index required queries to change:
 
-        SELECT * FROM mock1 WHERE handle=11242 AND highest >= 800420 AND lowest <= 829006;
-        SELECT * FROM mock2 WHERE handle=11242 AND int4range(lowest,highest,'[]') && int4range(800420,829006,'[]');
+        SELECT * FROM mock1 WHERE handle=11242 AND range_high >= 800420 AND range_low <= 829006;
+        SELECT * FROM mock2 WHERE handle=11242 AND int4range(range_low,range_high,'[]') && int4range(800420,829006,'[]');
 
 
