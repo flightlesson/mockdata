@@ -38,6 +38,7 @@ public class MockDataGenerator implements Runnable {
             +"latest = earliest + width."
             +"\n"
             ;
+    
     static private final Options OPTIONS;
     
     static final String NROWS_DEFAULT        = "1000000";
@@ -46,6 +47,8 @@ public class MockDataGenerator implements Runnable {
     static final String HIGHEST_DEFAULT      = "1000000";
     static final String MEAN_WIDTH_DEFAULT   =   "10000";
     static final String STDDEV_WIDTH_DEFAULT =    "3000";
+    
+    static Random random_generator = new Random();
     
     static {
         OPTIONS = new Options();
@@ -72,7 +75,7 @@ public class MockDataGenerator implements Runnable {
         OPTIONS.addOption(null,"create-table", false, 
                 "Implies SQL. See discussion with the -sql option.");
         OPTIONS.addOption(null,"type", true, 
-                "Data type for the range endpoint. [INT]");
+                "Data type for the range endpoints. [INT]");
         OPTIONS.addOption(null,"seed", true,
                 "Seed value for the random number generator.");
     }
@@ -86,7 +89,7 @@ public class MockDataGenerator implements Runnable {
             }
             
             if (cmdline.hasOption("seed")) {
-                
+                random_generator = new Random(Long.parseLong(cmdline.getOptionValue("seed")));
             }
         
             MockDataGenerator application = new MockDataGenerator(cmdline.hasOption("verbose"),
@@ -94,8 +97,8 @@ public class MockDataGenerator implements Runnable {
                     cmdline.hasOption("create-table"),
                     Integer.parseInt(cmdline.getOptionValue("nrows",NROWS_DEFAULT)),
                     Integer.parseInt(cmdline.getOptionValue("handles",HANDLES_DEFAULT)),
-                    Integer.parseInt(cmdline.getOptionValue("earliest",LOWEST_DEFAULT)),
-                    Integer.parseInt(cmdline.getOptionValue("latest",HIGHEST_DEFAULT)),
+                    Integer.parseInt(cmdline.getOptionValue("lowest",LOWEST_DEFAULT)),
+                    Integer.parseInt(cmdline.getOptionValue("highest",HIGHEST_DEFAULT)),
                     Integer.parseInt(cmdline.getOptionValue("mean-width",MEAN_WIDTH_DEFAULT)),
                     Integer.parseInt(cmdline.getOptionValue("stddev-width",STDDEV_WIDTH_DEFAULT)),
                     cmdline.getOptionValue("type","INT")
@@ -112,21 +115,21 @@ public class MockDataGenerator implements Runnable {
     private final boolean createTable;
     private final int nrows;
     private final int n_handles;
-    private final int earliest;
-    private final int latest;
-    private final int mean;
+    private final int lowest;
+    private final int highest;
+    private final int meanWidth;
     private final int stddev;
     private final String range_type;
     
-    public MockDataGenerator(boolean verbose, boolean sql, boolean createTable, int nrows, int n_handles, int earliest, int latest, int mean, int stddev, String range_type) {
+    public MockDataGenerator(boolean verbose, boolean sql, boolean createTable, int nrows, int n_handles, int lowest, int highest, int meanWidth, int stddev, String range_type) {
         this.verbose = verbose;
         this.sql = sql;
         this.createTable = createTable;
         this.nrows = nrows;
         this.n_handles = n_handles;
-        this.earliest = earliest;
-        this.latest = latest;
-        this.mean = mean;
+        this.lowest = lowest;
+        this.highest = highest;
+        this.meanWidth = meanWidth;
         this.stddev = stddev;
         this.range_type = range_type;
     }
@@ -135,7 +138,7 @@ public class MockDataGenerator implements Runnable {
     public void run() {
         
         if (verbose) {
-            System.out.println("-- Generating nrows of mock data with handles madsets");
+            System.out.println("-- nrows="+nrows+", n_handles="+n_handles+", lowest="+lowest+", highest="+highest+", mean="+meanWidth+", stddev="+stddev);
         }
         
         if (createTable) {
@@ -150,37 +153,48 @@ public class MockDataGenerator implements Runnable {
             System.out.println("INSERT INTO mock (handle, range_low, range_high, stuff) VALUES ");
         }
         
-        Random rand = new Random();
         for (int i=0; i < nrows; ++i) {
-            int h = rand.nextInt(n_handles-1)+1;
-            int e = rand.nextInt(latest);
-            int d = (int) (rand.nextGaussian() * stddev + mean);
-            if (d < 0) d = 0;
-            String lowest;
-            String highest;
-            String stuff = "'"+i+":"+d+"'";
+            int this_handle = random_generator.nextInt(n_handles-1)+1;
+            int this_midpoint = lowest + (random_generator.nextInt(highest - lowest));
+            int this_width = (int) (random_generator.nextGaussian() * stddev + meanWidth);
+            int this_low;
+            int this_high;
+            if (this_width <= 0) {
+                this_low = this_midpoint;
+                this_high = this_midpoint;
+            } else {
+                this_low = this_midpoint - this_width/2;
+                if (this_low < lowest) this_low = lowest;
+                this_high = this_low + this_width;
+                if (this_high > highest) this_high = highest;
+            }
+            String lowvalue;
+            String highvalue;
+            String stuff = "'"+i+":"+this_width+"'";
             switch (range_type) {
                 case "timestamp":
-                    lowest = "to_timestamp(" + e + ")";
-                    highest = "to_timestamp(" + (e+d) + ")";
+                    lowvalue = "to_timestamp(" + this_low + ")";
+                    highvalue = "to_timestamp(" + this_high + ")";
                     break;
                 default:
-                    lowest =  String.valueOf(e);
-                    highest = String.valueOf(e+d);
+                    lowvalue =  String.valueOf(this_low);
+                    highvalue = String.valueOf(this_high);
                     break;
             }
             if (createTable) {
-                System.out.println(h + "\t" + lowest + "\t" + highest + "\t" + stuff);
+                System.out.println(this_handle + "\t" + lowvalue + "\t" + highvalue + "\t" + stuff);
             } else if (sql) {
-                System.out.println(comma + "(" + h + "," + lowest + "," + highest + "," + stuff + ")");
+                System.out.println(comma + "(" + this_handle + "," + lowvalue + "," + highvalue + "," + stuff + ")");
                 comma = ",";
             } else {
-                System.out.println(h + "," + lowest + "," + highest + "," + stuff);
+                System.out.println(this_handle + "," + lowvalue + "," + highvalue + "," + stuff);
             }
         }
         
         if (createTable) {
             System.out.println("\\.\n");
+        } else if (sql) {
+            System.out.println(";");
         }
     }
 }
