@@ -1,6 +1,6 @@
 # This uses GNU Make syntax and extensions.
 
-MYAPP=myapp
+MYAPP=mockdatagenerator
 # TRUNK is usually set to the parent of the scm-managed directory.
 # TRUNK must either be empty or end with a slash.
 # Should have same value as TRUNK in any application wrapper scripts and <trunk> in pom.xml.
